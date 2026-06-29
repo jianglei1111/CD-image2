@@ -1,8 +1,10 @@
 # CD-image2
 
-CD-image2 是一个面向 `https://sp.chedankj.com/v1` image2 通道的桌面 GUI、Codex skill 和脚本客户端集合。它可以用同一个 `image` 分组 API Key 完成文生图、图生图/图片编辑、批量队列、并发生成和本地结果保存。
+CD-image2 把 image2 生图流程整理成了三种入口：一个可以直接点开的桌面 GUI、一个给 Codex 使用的 skill，以及一个适合自动化脚本调用的命令行客户端。你可以用它完成文生图、图生图/图片编辑、批量队列、并发生成和本地结果保存。
 
-> API Key 需要在 [车蛋科技](https://www.chedankj.com) 创建，分组请选择 `image`。不要把 Key 写进仓库或脚本文件。
+接口固定访问 `https://sp.chedankj.com/v1`，使用同一个 `image` 分组 API Key。
+
+> API Key 请到 https://www.chedankj.com/ 创建，分组选择 `image`。Key 只建议在 GUI 里运行时填写，或通过环境变量临时传入；不要写进仓库、README、脚本文件或打包配置里。
 
 ## 下载安装
 
