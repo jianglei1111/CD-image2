@@ -58,6 +58,12 @@ def parse_args() -> argparse.Namespace:
         subparser.add_argument("--output", default=None, help="Output PNG path; for count > 1 suffixes are added")
         subparser.add_argument("--output-dir", default=".", help="Output directory when --output is omitted")
         subparser.add_argument("--slug", default=None, help="Short filename slug when --output is omitted")
+        subparser.add_argument(
+            "--response-format",
+            default="auto",
+            choices=["auto", "b64_json", "url"],
+            help="Requested upstream response format; auto omits the field and accepts either b64_json or url",
+        )
         subparser.add_argument("--retries", type=int, default=3, help="Retries for gateway timeout errors")
         subparser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help=f"Request timeout seconds, default: {DEFAULT_TIMEOUT}")
 
@@ -130,7 +136,7 @@ def parse_error_body(raw: str) -> str:
     return raw[:500]
 
 
-def extract_image_b64(data: dict) -> str:
+def extract_image_output(data: dict) -> tuple[str, str]:
     items = data.get("data")
     if not isinstance(items, list) or not items:
         raise Image2Error("Response does not contain image data")
@@ -139,8 +145,11 @@ def extract_image_b64(data: dict) -> str:
         raise Image2Error("Unexpected image data format")
     b64_data = first.get("b64_json")
     if isinstance(b64_data, str) and b64_data:
-        return b64_data
-    raise Image2Error("Response does not contain b64_json image data")
+        return ("b64_json", b64_data)
+    image_url = first.get("url")
+    if isinstance(image_url, str) and image_url:
+        return ("url", image_url)
+    raise Image2Error("Response image data contains neither b64_json nor url")
 
 
 def save_b64_png(path: Path, b64_data: str) -> None:
@@ -148,6 +157,42 @@ def save_b64_png(path: Path, b64_data: str) -> None:
         path.write_bytes(base64.b64decode(b64_data))
     except Exception as exc:
         raise Image2Error(f"Failed to save image to {path}: {exc}") from exc
+
+
+def save_url_image(path: Path, image_url: str, timeout: int, retries: int) -> None:
+    attempts = max(1, retries)
+    for attempt in range(1, attempts + 1):
+        try:
+            response = httpx.get(image_url, follow_redirects=True, timeout=timeout)
+        except httpx.RequestError as exc:
+            raise Image2Error(f"Image URL download network error: {exc}") from exc
+
+        if response.status_code == 200:
+            if not response.content:
+                raise Image2Error(f"Image URL returned an empty body: {image_url}")
+            try:
+                path.write_bytes(response.content)
+            except Exception as exc:
+                raise Image2Error(f"Failed to save downloaded image to {path}: {exc}") from exc
+            return
+
+        if response.status_code in RETRY_STATUSES and attempt < attempts:
+            print(f"[image2] image download HTTP {response.status_code}; retrying {attempt}/{attempts}...", flush=True)
+            continue
+
+        message = response.reason_phrase or response.text[:200]
+        raise Image2Error(f"Image URL download HTTP {response.status_code}: {message}", status=response.status_code, body=response.text)
+
+
+def save_image_output(path: Path, image_output: tuple[str, str], timeout: int, retries: int) -> str:
+    output_type, value = image_output
+    if output_type == "b64_json":
+        save_b64_png(path, value)
+        return output_type
+    if output_type == "url":
+        save_url_image(path, value, timeout=timeout, retries=retries)
+        return output_type
+    raise Image2Error(f"Unsupported image output type: {output_type}")
 
 
 def request_with_retries(callable_request, retries: int) -> dict:
@@ -178,7 +223,7 @@ def request_with_retries(callable_request, retries: int) -> dict:
     raise Image2Error("Request failed after retries")
 
 
-def generate_once(args: argparse.Namespace, api_key: str) -> str:
+def generate_once(args: argparse.Namespace, api_key: str) -> tuple[str, str]:
     url = f"{BASE_URL.rstrip('/')}/images/generations"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -190,16 +235,17 @@ def generate_once(args: argparse.Namespace, api_key: str) -> str:
         "size": args.size,
         "quality": args.quality,
         "n": 1,
-        "response_format": "b64_json",
     }
+    if args.response_format != "auto":
+        payload["response_format"] = args.response_format
 
     def do_request():
         return httpx.post(url, headers=headers, json=payload, timeout=args.timeout)
 
-    return extract_image_b64(request_with_retries(do_request, args.retries))
+    return extract_image_output(request_with_retries(do_request, args.retries))
 
 
-def edit_once(args: argparse.Namespace, api_key: str) -> str:
+def edit_once(args: argparse.Namespace, api_key: str) -> tuple[str, str]:
     input_path = Path(args.input).resolve()
     if not input_path.exists():
         raise Image2Error(f"Input image does not exist: {input_path}")
@@ -219,11 +265,12 @@ def edit_once(args: argparse.Namespace, api_key: str) -> str:
                 "prompt": args.prompt,
                 "size": args.size,
                 "quality": args.quality,
-                "response_format": "b64_json",
             }
+            if args.response_format != "auto":
+                data["response_format"] = args.response_format
             return httpx.post(url, headers=headers, files=files, data=data, timeout=args.timeout)
 
-    return extract_image_b64(request_with_retries(do_request, args.retries))
+    return extract_image_output(request_with_retries(do_request, args.retries))
 
 
 def main() -> int:
@@ -236,16 +283,18 @@ def main() -> int:
         print(f"[image2] mode={args.command} model={args.model} size={args.size} quality={args.quality}", flush=True)
         print(f"[image2] base_url={BASE_URL}", flush=True)
 
+        source_types = []
         for index, path in enumerate(paths, start=1):
             if args.command == "generate":
-                b64_data = generate_once(args, api_key)
+                image_output = generate_once(args, api_key)
             else:
-                b64_data = edit_once(args, api_key)
-            save_b64_png(path, b64_data)
-            print(f"[image2] saved {index}/{len(paths)}: {path}", flush=True)
+                image_output = edit_once(args, api_key)
+            source_type = save_image_output(path, image_output, timeout=args.timeout, retries=args.retries)
+            source_types.append(source_type)
+            print(f"[image2] saved {index}/{len(paths)} from {source_type}: {path}", flush=True)
 
         print("[image2] OK", flush=True)
-        print(json.dumps({"ok": True, "paths": [str(path) for path in paths]}, ensure_ascii=False), flush=True)
+        print(json.dumps({"ok": True, "paths": [str(path) for path in paths], "source_types": source_types}, ensure_ascii=False), flush=True)
         return 0
     except Image2Error as exc:
         if exc.status:

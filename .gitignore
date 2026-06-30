@@ -19,6 +19,7 @@ config.ini
 macos_build_source/
 macos_build_source*.zip
 image2-mac/
+CD-image/
 cd-image2-skill/
 design_refs/
 

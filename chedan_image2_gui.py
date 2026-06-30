@@ -1112,7 +1112,32 @@ class ImageGenApp:
             img.save(out, format="WEBP", quality=quality, method=6)
             return out.getvalue(), "webp"
 
-    def _extract_image_b64(self, payload, api_key):
+    def _download_image_url(self, image_url):
+        for attempt in range(1, RETRIES + 1):
+            try:
+                resp = httpx.get(
+                    image_url,
+                    follow_redirects=True,
+                    timeout=REQUEST_TIMEOUT,
+                )
+            except httpx.RequestError as exc:
+                raise Exception(f"下载 URL 图片失败: {exc}") from exc
+
+            if resp.status_code == 200:
+                if not resp.content:
+                    raise Exception(f"URL 图片内容为空: {image_url}")
+                return resp.content
+
+            if resp.status_code in RETRY_STATUSES and attempt < RETRIES:
+                self._log(f"下载 URL 图片 HTTP {resp.status_code}，正在重试 {attempt}/{RETRIES} ...")
+                continue
+
+            preview = resp.text[:500] if resp.text else resp.reason_phrase
+            raise Exception(f"下载 URL 图片失败 HTTP {resp.status_code}: {preview}")
+
+        raise Exception("下载 URL 图片重试后仍失败")
+
+    def _extract_image_b64(self, payload):
         """从 Images API 响应中提取图片；兼容 base64 和 URL 两种返回。"""
         data = payload.get("data") if isinstance(payload, dict) else None
         if not isinstance(data, list):
@@ -1129,14 +1154,8 @@ class ImageGenApp:
 
             url = item.get("url")
             if url:
-                img_resp = httpx.get(
-                    url,
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    timeout=REQUEST_TIMEOUT,
-                )
-                if img_resp.status_code != 200:
-                    raise Exception(f"下载图片失败 HTTP {img_resp.status_code}: {img_resp.text[:500]}")
-                return base64.b64encode(img_resp.content).decode("utf-8")
+                raw = self._download_image_url(url)
+                return base64.b64encode(raw).decode("utf-8")
 
         return None
 
@@ -1176,7 +1195,6 @@ class ImageGenApp:
             "prompt": prompt,
             "n": 1,
             "quality": quality,
-            "response_format": "b64_json",
         }
         if size != "auto":
             common_fields["size"] = size
@@ -1224,7 +1242,7 @@ class ImageGenApp:
         except json.JSONDecodeError:
             raise Exception(f"响应不是 JSON: {resp.text[:500]}")
 
-        image_b64 = self._extract_image_b64(payload, api_key)
+        image_b64 = self._extract_image_b64(payload)
         if not image_b64:
             preview = json.dumps(payload, ensure_ascii=False)[:800]
             raise Exception(f"响应中没有图片数据: {preview}")

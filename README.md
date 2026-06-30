@@ -124,7 +124,7 @@ python .\cd-image2\scripts\image2_cli.py edit "保留主体结构，把背景改
 
 - `generate` 调用 `/images/generations`，使用 JSON 请求体。
 - `edit` 调用 `/images/edits`，使用 multipart 上传输入图。
-- 响应优先读取 `b64_json`，并保存为本地 PNG。
+- 响应兼容 `b64_json` 和 `url`：如果接口返回 URL，会先下载图片，再保存到本地输出路径。
 
 ## 从源码运行
 

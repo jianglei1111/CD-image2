@@ -1,7 +1,7 @@
 ﻿# SHA256 Checksums
 
-ec24c9a78121ba8930a0fb55c577d9b41c37e7a4e0ad97b3a2b474aa9dddea13  chedan-image2-gui-windows.exe
+3ff342732f01d9fbbd775d091b91f1a279ae7544a1f3932ef1765d3fd2f1fef1  chedan-image2-gui-windows.exe
 071cdcac426146864da94d3c9620323c14ffdd9f3395d5c2b7cc6b77014feba6  Chedan-Image2-macOS.dmg
 30922867251aa87b2a5533eaf14dc475c7674ac7fc4d013a75f3c9c6a21a7068  Chedan-Image2-macOS.pkg
 f614c56f4eacf3aa942ac3a3601d0ad18d20d0bad9976f723e79ec440d2a0175  Chedan-Image2-macOS-app.zip
-eeccc5ac7af43b4a90102c948c8ee75d3a3085c797baf9f6f3b78ff3aa6a5db7  chedan-image2-skill.zip
+94e9a85e90014baf9e611357fef2a47c528e769e9123bba4349ee872d9ab1052  chedan-image2-skill.zip

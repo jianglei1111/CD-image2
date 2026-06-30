@@ -7,6 +7,8 @@ description: "Generate or edit images through the fixed CD-image2 channel at htt
 
 Use this skill for image generation or image editing through the bundled `scripts/image2_cli.py` client. The API base URL is fixed in the script as `https://sp.chedankj.com/v1`.
 
+The bundled client accepts both common image response shapes. If the API returns `data[0].b64_json`, it decodes and saves that image directly. If the API returns `data[0].url`, it downloads the URL and saves the image to the requested output path.
+
 The bundled client intentionally uses `httpx` to match the known-working legacy image2 script. If `httpx` is missing, install it in the Python environment you will use to run the script:
 
 ```powershell
