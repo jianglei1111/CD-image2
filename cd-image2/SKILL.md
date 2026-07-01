@@ -63,10 +63,11 @@ Useful examples:
 
 - `3840x2160` is valid landscape 4K.
 - `2160x3840` is valid portrait 4K.
+- `3840x2464` is invalid because the total pixel count is `9461760`, which is greater than `8294400`.
 - `4096x2160` is invalid because the long edge is greater than `3840`.
 - `4096x4096` is invalid because the long edge and total pixels exceed the limits.
 
-If a user asks for an invalid 4K size, explain the rule and suggest the closest valid size, such as `3840x2160`, `2160x3840`, or `2048x2048`.
+If a user asks for an invalid 4K size, explain the exact failed rule and include the requested size. For example, reject `3840x2464` with a message like: `gpt-image-2 size is invalid: total pixels must be between 655360 and 8294400, current size=3840x2464`. Suggest the closest valid size, such as `3840x2160`, `2160x3840`, or `2048x2048`.
 
 Even valid 4K requests are heavy and may fail with gateway or timeout errors. If a valid 4K request fails, tell the user that 4K generation can genuinely fail on this channel due to upstream timeout or capacity limits, then include the actual HTTP status and message.
 

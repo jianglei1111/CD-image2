@@ -1003,15 +1003,15 @@ class ImageGenApp:
         pixels = width * height
 
         if width <= 0 or height <= 0:
-            return "宽度和高度必须大于 0。"
+            return f"尺寸不符合规则：宽度和高度必须大于 0，当前 size={size}。"
         if width % 16 != 0 or height % 16 != 0:
-            return "宽度和高度都必须是 16 的倍数，这是当前接口的尺寸要求。"
+            return f"尺寸不符合规则：宽度和高度都必须是 16 的倍数，当前 size={size}。"
         if long_edge > 3840:
-            return "长边不能超过 3840 像素。"
+            return f"尺寸不符合规则：长边不能超过 3840 像素，当前 size={size}。"
         if long_edge / short_edge > 3:
-            return "宽高比不能超过 3:1。"
+            return f"尺寸不符合规则：宽高比不能超过 3:1，当前 size={size}。"
         if pixels < 655360 or pixels > 8294400:
-            return "总像素必须在 655360 到 8294400 之间。"
+            return f"尺寸不符合规则：总像素必须在 655360 到 8294400 之间，当前 size={size}，当前总像素={pixels}。"
         return None
 
     # ── API call ─────────────────────────────────────────────────────────────

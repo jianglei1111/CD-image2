@@ -30,6 +30,9 @@ DEFAULT_SIZE = "1024x1024"
 DEFAULT_QUALITY = "high"
 DEFAULT_TIMEOUT = 600
 RETRY_STATUSES = {502, 504, 522, 524}
+MAX_LONG_EDGE = 3840
+MIN_TOTAL_PIXELS = 655360
+MAX_TOTAL_PIXELS = 8294400
 
 
 class Image2Error(Exception):
@@ -99,6 +102,41 @@ def slugify(value: str) -> str:
     value = re.sub(r"[^a-z0-9]+", "-", value)
     value = re.sub(r"-{2,}", "-", value).strip("-")
     return value[:60] or "image2-output"
+
+
+def parse_size(size: str) -> tuple[int, int] | None:
+    if (size or "").strip().lower() == "auto":
+        return None
+    match = re.fullmatch(r"\s*(\d+)\s*[xX×]\s*(\d+)\s*", size or "")
+    if not match:
+        raise Image2Error(f"Invalid size format: {size}. Use WIDTHxHEIGHT, for example 2048x2048.")
+    return int(match.group(1)), int(match.group(2))
+
+
+def validate_size(size: str, model: str) -> None:
+    parsed = parse_size(size)
+    if parsed is None:
+        return
+
+    width, height = parsed
+    long_edge = max(width, height)
+    short_edge = min(width, height)
+    pixels = width * height
+    prefix = f"{model} size is invalid"
+
+    if width <= 0 or height <= 0:
+        raise Image2Error(f"{prefix}: width and height must be greater than 0, current size={size}.")
+    if width % 16 != 0 or height % 16 != 0:
+        raise Image2Error(f"{prefix}: width and height must both be multiples of 16, current size={size}.")
+    if long_edge > MAX_LONG_EDGE:
+        raise Image2Error(f"{prefix}: long edge must be no more than {MAX_LONG_EDGE}, current size={size}.")
+    if long_edge / short_edge > 3:
+        raise Image2Error(f"{prefix}: aspect ratio must be no more extreme than 3:1, current size={size}.")
+    if pixels < MIN_TOTAL_PIXELS or pixels > MAX_TOTAL_PIXELS:
+        raise Image2Error(
+            f"{prefix}: total pixels must be between {MIN_TOTAL_PIXELS} and {MAX_TOTAL_PIXELS}, "
+            f"current size={size} ({pixels} pixels). Try 3840x2160, 2160x3840, or 2048x2048."
+        )
 
 
 def output_paths(args: argparse.Namespace) -> list[Path]:
@@ -232,10 +270,11 @@ def generate_once(args: argparse.Namespace, api_key: str) -> tuple[str, str]:
     payload = {
         "model": args.model,
         "prompt": args.prompt,
-        "size": args.size,
         "quality": args.quality,
         "n": 1,
     }
+    if args.size.strip().lower() != "auto":
+        payload["size"] = args.size
     if args.response_format != "auto":
         payload["response_format"] = args.response_format
 
@@ -263,9 +302,10 @@ def edit_once(args: argparse.Namespace, api_key: str) -> tuple[str, str]:
             data = {
                 "model": args.model,
                 "prompt": args.prompt,
-                "size": args.size,
                 "quality": args.quality,
             }
+            if args.size.strip().lower() != "auto":
+                data["size"] = args.size
             if args.response_format != "auto":
                 data["response_format"] = args.response_format
             return httpx.post(url, headers=headers, files=files, data=data, timeout=args.timeout)
@@ -276,6 +316,7 @@ def edit_once(args: argparse.Namespace, api_key: str) -> tuple[str, str]:
 def main() -> int:
     args = parse_args()
     try:
+        validate_size(args.size, args.model)
         require_httpx()
         api_key = get_api_key(args)
         paths = output_paths(args)
