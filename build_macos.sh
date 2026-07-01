@@ -3,11 +3,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-APP_NAME="Chedan Image2"
-SPEC_FILE="chedan-image2-gui-macos.spec"
-DMG_NAME="Chedan-Image2-macOS.dmg"
-PKG_NAME="Chedan-Image2-macOS.pkg"
-ZIP_NAME="Chedan-Image2-macOS-app.zip"
+APP_NAME="CD-image2"
+SPEC_FILE="CD-image2-gui-macos.spec"
+DMG_NAME="CD-image2-macOS.dmg"
+PKG_NAME="CD-image2-macOS.pkg"
+ZIP_NAME="CD-image2-macOS-app.zip"
 PNG_ICON="chedankj-cd-egg-solid-logo.png"
 ICNS_ICON="chedankj-cd-egg-solid-logo.icns"
 ICONSET_DIR="chedankj-cd-egg-solid-logo.iconset"

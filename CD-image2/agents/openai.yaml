@@ -1,0 +1,8 @@
+interface:
+  display_name: "CD-image2"
+  short_description: "Generate and edit images through the CD-image2 channel."
+  brand_color: "#00B8D9"
+  default_prompt: "Use $CD-image2 to generate a polished image from my description."
+
+policy:
+  allow_implicit_invocation: true

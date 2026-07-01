@@ -28,9 +28,9 @@ jobs:
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Chedan-Image2-macOS
+          name: CD-image2-macOS
           path: |
-            dist/Chedan Image2.app
-            dist/Chedan-Image2-macOS-app.zip
-            dist/Chedan-Image2-macOS.dmg
-            dist/Chedan-Image2-macOS.pkg
+            dist/CD-image2.app
+            dist/CD-image2-macOS-app.zip
+            dist/CD-image2-macOS.dmg
+            dist/CD-image2-macOS.pkg
